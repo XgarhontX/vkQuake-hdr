@@ -3392,17 +3392,17 @@ static float ScreenshotConvertHalfToFloat (uint16_t value)
 static uint16_t ScreenshotEncodePq (float x)
 {
 	// PQ encode
-	static const float PQ_constant_M1 =  0.1593017578125f;
+	static const float PQ_constant_M1 = 0.1593017578125f;
 	static const float PQ_constant_M2 = 78.84375f;
-	static const float PQ_constant_C1 =  0.8359375f;
+	static const float PQ_constant_C1 = 0.8359375f;
 	static const float PQ_constant_C2 = 18.8515625f;
 	static const float PQ_constant_C3 = 18.6875f;
 
 	x /= 10000.f; // 10000 nits max
-	float colorPow = pow(x, PQ_constant_M1);
+	float colorPow = pow (x, PQ_constant_M1);
 	float numerator = PQ_constant_C1 + PQ_constant_C2 * colorPow;
 	float denominator = 1.f + PQ_constant_C3 * colorPow;
-	float pq = pow(numerator / denominator, PQ_constant_M2);
+	float pq = pow (numerator / denominator, PQ_constant_M2);
 	return (uint16_t)(pq * 65535.0f + 0.5f); // packed
 }
 
@@ -3448,7 +3448,7 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 		if (is_scrgb /*&& !q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext))*/) // force PNG
 		{
 			const size_t pixel_count = (size_t)glwidth * glheight;
-			byte *png_pixels = (byte *)Mem_Alloc (pixel_count * 8); // TODO: make Image_WritePNG accept uint16_t?
+			byte		*png_pixels = (byte *)Mem_Alloc (pixel_count * 8); // TODO: make Image_WritePNG accept uint16_t?
 
 			const uint16_t *src = (const uint16_t *)buffer_ptr;
 			for (size_t i = 0; i < pixel_count; i++)

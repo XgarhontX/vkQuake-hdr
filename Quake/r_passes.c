@@ -44,7 +44,7 @@ typedef void (*frame_recorder_t) (cb_context_t *cbx);
 
 // TODO: this is dirty! it's solely for bloom, since optional screen effects can flipflop read/write index
 static uint32_t scene_color_index;
-uint32_t R_SceneColorBufferIndex (void)
+uint32_t		R_SceneColorBufferIndex (void)
 {
 	return scene_color_index;
 }
