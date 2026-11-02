@@ -1713,7 +1713,7 @@ void R_RenderView (
 			PScript_EmitParticlesTask (pi, NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
-		if (r_bloomhdr.value > 0) 
+		if (r_bloomhdr.value > 0)
 			R_DrawBloomHDRTask (NULL);
 		if (r_gpulightmapupdate.value)
 		{

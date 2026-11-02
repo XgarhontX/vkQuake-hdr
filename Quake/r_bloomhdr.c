@@ -9,38 +9,38 @@
 #include "quakedef.h"
 #include "r_bloomhdr.h"
 
-cvar_t					 r_bloomhdr = {"r_bloomhdr", "1", CVAR_ARCHIVE};
-cvar_t					 r_bloomhdr_intensity = {"r_bloomhdr_intensity", "1.0", CVAR_ARCHIVE};
-cvar_t					 r_bloomhdr_threshold = {"r_bloomhdr_threshold", "0.8", CVAR_ARCHIVE};
-cvar_t					 r_bloomhdr_mips = {"r_bloomhdr_mips", "7", CVAR_ARCHIVE};
+cvar_t r_bloomhdr = {"r_bloomhdr", "1", CVAR_ARCHIVE};
+cvar_t r_bloomhdr_intensity = {"r_bloomhdr_intensity", "1.0", CVAR_ARCHIVE};
+cvar_t r_bloomhdr_threshold = {"r_bloomhdr_threshold", "0.8", CVAR_ARCHIVE};
+cvar_t r_bloomhdr_mips = {"r_bloomhdr_mips", "7", CVAR_ARCHIVE};
 
 #define BLOOMHDR_INTENSITYFUDGE ((1.f/effective_mips) * 0.4f)
 #define BLOOMHDR_BUFFERFORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 
 // see gl_misc.c R_CreatePipelineLayouts(), R_DestroyPipelineLayouts(), R_CreatePipelines(), R_DestroyPipelines()
 vulkan_pipeline_layout_t bloomhdr_fragment_layout;
-vulkan_pipeline_t bloomhdr_fragment_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT];
+vulkan_pipeline_t		 bloomhdr_fragment_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT];
 vulkan_pipeline_layout_t bloomhdr_compute_layout;
-vulkan_pipeline_t bloomhdr_compute_pipeline_downfilter;
-vulkan_pipeline_t bloomhdr_compute_pipeline_down;
-vulkan_pipeline_t bloomhdr_compute_pipeline_up;
-vulkan_pipeline_t bloomhdr_compute_pipeline_upfilter;
+vulkan_pipeline_t		 bloomhdr_compute_pipeline_downfilter;
+vulkan_pipeline_t		 bloomhdr_compute_pipeline_down;
+vulkan_pipeline_t		 bloomhdr_compute_pipeline_up;
+vulkan_pipeline_t		 bloomhdr_compute_pipeline_upfilter;
 
-static VkImage working_images[BLOOMHDR_MAX_MIPS];
-static VkImageView working_views[BLOOMHDR_MAX_MIPS];
+static VkImage		   working_images[BLOOMHDR_MAX_MIPS];
+static VkImageView	   working_views[BLOOMHDR_MAX_MIPS];
 static vulkan_memory_t working_memory[BLOOMHDR_MAX_MIPS];
 static VkDescriptorSet working_read[BLOOMHDR_MAX_MIPS];
 static VkDescriptorSet working_write[BLOOMHDR_MAX_MIPS];
-static uint32_t working_width[BLOOMHDR_MAX_MIPS]; // resolution
-static uint32_t working_height[BLOOMHDR_MAX_MIPS]; // resolution
-static VkSampler sampler; // main linear sampler
+static uint32_t		   working_width[BLOOMHDR_MAX_MIPS];  // resolution
+static uint32_t		   working_height[BLOOMHDR_MAX_MIPS]; // resolution
+static VkSampler	   sampler;							  // main linear sampler
 
 static int effective_mips; // mips calculated for render size
 static int r_bloomhdr_mips_prev; // dirty check for vid_restart
 
 // Full resolution scene delta (gamma space), written by the final upsample and blended by the composite.
-static VkImage delta_image;
-static VkImageView delta_view;
+static VkImage		   delta_image;
+static VkImageView	   delta_view;
 static vulkan_memory_t delta_memory;
 static VkDescriptorSet delta_read;
 static VkDescriptorSet delta_write;
@@ -73,8 +73,9 @@ static int R_BloomHDREffectiveMips (void)
 // see GL_BeginRendering(), this determines vid_restart
 bool R_BloomHDRMipsChanged (void)
 {
-	if (r_bloomhdr.value == 0) return false;
-	int r_bloomhdr_mips_int = (int)floorf (r_bloomhdr_mips.value);
+	if (r_bloomhdr.value == 0)
+		return false;
+	int	 r_bloomhdr_mips_int = (int)floorf (r_bloomhdr_mips.value);
 	bool is_mips_changed = r_bloomhdr_mips_prev != r_bloomhdr_mips_int;
 	r_bloomhdr_mips_prev = r_bloomhdr_mips_int;
 	return is_mips_changed;
@@ -87,7 +88,8 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 
 	effective_mips = R_BloomHDREffectiveMips ();
 
-	const VkSamplerCreateInfo sampler_info = { // sampler
+	// sampler
+	const VkSamplerCreateInfo sampler_info = { 
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
@@ -108,7 +110,8 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 		working_width[i] = w;
 		working_height[i] = h;
 
-		const VkImageCreateInfo image_info = { // info
+		// info
+		const VkImageCreateInfo image_info = { 
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
 			.format = BLOOMHDR_BUFFERFORMAT,
@@ -133,7 +136,8 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 		if (vkBindImageMemory (vulkan_globals.device, working_images[i], working_memory[i].handle, 0) != VK_SUCCESS)
 			Sys_Error ("Couldn't bind bloom image memory");
 
-		const VkImageViewCreateInfo view_info = { // views & descriptors
+		// views & descriptors
+		const VkImageViewCreateInfo view_info = { 
 			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.image = working_images[i],
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
@@ -303,7 +307,7 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
 		};
 	}
-	vulkan_globals.vk_cmd_pipeline_barrier(
+	vulkan_globals.vk_cmd_pipeline_barrier (
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, effective_mips + 1, barriers);
 
 	// which color buffer is current
