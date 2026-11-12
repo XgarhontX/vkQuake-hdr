@@ -253,9 +253,9 @@ void main ()
 
 		// GT Tonemap (Exponential Rolloff w/ Toe)
 		// if (push_constants.alt_blowout > 0) frag = BT709_TO_BT2020_EXPANDED_BT709_MAT * frag;
-    if (push_constants.alt_blowout > 0) frag = BT709ToBT2020(frag);
+    // if (push_constants.alt_blowout > 0) frag = BT709ToBT2020(frag);
 		frag = GTTonemap(frag, p, s, t);
-    if (push_constants.alt_blowout > 0) frag = BT2020ToBT709(frag);
+    /* if (push_constants.alt_blowout > 0)  */frag = BT2020ToBT709(frag);
 		// if (push_constants.alt_blowout > 0) frag = BT2020_EXPANDED_BT709_TO_BT709_MAT * frag;
 
 		// frag = JzAzBzFromBT709(frag, 10000/203.f, 1.7);

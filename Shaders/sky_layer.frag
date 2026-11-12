@@ -1,6 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
 
 layout (push_constant) uniform PushConsts
 {
@@ -20,18 +21,20 @@ layout (location = 0) in vec4 in_texcoord;
 
 layout (location = 0) out vec4 out_frag_color;
 
+#include "color_convert.inc"
+
 void main ()
 {
 	vec2 uv = normalize (in_texcoord).xy * (189.0 / 64.0);
 
-	vec4 solid_layer = texture (solid_tex, uv + push_constants.time / 16.0f);
-	vec4 alpha_layer = texture (alpha_tex, uv + push_constants.time / 8.0f);
+	vec4 solid_layer = texture (solid_tex, uv + push_constants.time / 16.0f); solid_layer.rgb = BT709GammaToBT2020Gamma(solid_layer.rgb);
+	vec4 alpha_layer = texture (alpha_tex, uv + push_constants.time / 8.0f); alpha_layer.rgb = BT709GammaToBT2020Gamma(alpha_layer.rgb);
 
 	alpha_layer.a *= push_constants.alpha;
 	out_frag_color = vec4 ((solid_layer.rgb * (1.0f - alpha_layer.a) + alpha_layer.rgb * alpha_layer.a), 1.0f);
 
 	if (push_constants.fog_density > 0.0f)
-		out_frag_color.rgb = (out_frag_color.rgb * (1.0f - push_constants.fog_density)) + (push_constants.fog_color * push_constants.fog_density);
+		out_frag_color.rgb = (out_frag_color.rgb * (1.0f - push_constants.fog_density)) + (BT709GammaToBT2020Gamma (push_constants.fog_color) * push_constants.fog_density);
 
 	out_frag_color = max(out_frag_color, vec4(0.0));
 	out_frag_color.w = min (out_frag_color.w, 1.0);

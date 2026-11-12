@@ -1,6 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
 
 layout (push_constant) uniform PushConsts
 {
@@ -19,18 +20,21 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 layout (location = 0) out vec4 out_frag_color;
 
+#include "color_convert.inc"
+
 void main ()
 {
-	out_frag_color = in_color * texture (sampler2D (tex, tex_sampler), in_texcoord.xy);
+	out_frag_color = BT709GammaToBT2020Gamma (in_color) * BT709GammaToBT2020Gamma (texture (sampler2D (tex, tex_sampler), in_texcoord.xy));
 	float fog = exp (-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
-	out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb, clamp (fog, 0.0, 1.0));
+	out_frag_color.rgb = mix (BT709GammaToBT2020Gamma (push_constants.fog_color), out_frag_color.rgb, clamp (fog, 0.0, 1.0));
 
 	out_frag_color.rgb = max (out_frag_color.rgb, vec3(0.0));
 	out_frag_color.w = min (out_frag_color.w, 1.0);
 
-	if (push_constants.brightness_ratio_inv != 0) 
+	// if (push_constants.brightness_ratio_inv != 0) 
 	{
 		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(2.2));
+		out_frag_color.rgb = BT709ToBT2020 (out_frag_color.rgb);
 		out_frag_color.rgb *= vec3(1 - push_constants.brightness_ratio_inv);
 		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(1.0/2.2));
 	}

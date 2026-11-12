@@ -40,6 +40,8 @@ layout (location = 2) in float in_fog_frag_coord;
 layout (location = 3) flat in vec4 in_texture_region;
 layout (location = 0) out vec4 out_frag_color;
 
+#include "color_convert.inc"
+
 const float XBR_EQ_THRESHOLD = 0.32;
 const float XBR_LV2_COEFFICIENT = 2.30;
 const vec4	XBR_DISTANCE_WEIGHTS = vec4 (0.2627, 0.6780, 0.0593, 1.0);
@@ -184,7 +186,7 @@ void main ()
 		filtered_color = xbr_level2 (source_texel, subpixel_index, region_origin, region_size, true);
 	else
 		filtered_color = xbr_level2 (source_texel, subpixel_index, region_origin, region_size, false);
-	out_frag_color = in_color * filtered_color;
+	out_frag_color = BT709GammaToBT2020Gamma (in_color) * filtered_color;
 #ifdef ALPHA_TEST
 	if (out_frag_color.a < 0.666f)
 		discard;
@@ -197,9 +199,10 @@ void main ()
 		out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb, clamp (fog, 0.0, 1.0));
 	}
 	
-	if (push_constants.brightness_ratio_inv != 0) 
+	// if (push_constants.brightness_ratio_inv != 0) 
 	{
 		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(2.2));
+		out_frag_color.rgb = BT709ToBT2020 (out_frag_color.rgb);
 		out_frag_color.rgb *= vec3(1 - push_constants.brightness_ratio_inv);
 		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(1.0/2.2));
 	}

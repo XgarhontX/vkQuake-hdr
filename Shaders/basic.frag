@@ -22,6 +22,7 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
 #include "basic_common.inc"
+#include "color_convert.inc"
 
 #if MBOIT
 #define MBOIT_INPUT_SET 1

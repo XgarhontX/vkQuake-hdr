@@ -31,6 +31,8 @@ layout (push_constant) uniform PushConsts
 }
 push_constants;
 
+#include "color_convert.inc"
+
 float blue_noise (ivec2 u)
 {
 	return texelFetch (blue_noise_tex, ivec2 (uint (u.x) % 64, uint (u.y) % 64), 0).r;
@@ -66,80 +68,80 @@ void main ()
 	else
 		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
 
-	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
-	{
-		uvec3 search_color = uvec3 (clamp(color.rgb, vec3(0), vec3(1)) * 255.0f);
-		uint  current_node_offset = 0;
-		uint  current_shift = 7;
-		uvec3 node_coords = uvec3 (0u);
-		[[loop]] while (true)
-		{
-			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
-			const uint	child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
-			const uint	offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
-			[[branch]] if ((offset & (1u << 31)) == 0)
-			{
-				node_coords = node_coords + (node_offsets << current_shift);
-				current_shift -= 1;
-				current_node_offset = offset;
-			}
-			else
-			{
-				const uint num_colors = offset & 0xF;
-				const uint colors_offset = (offset >> 4) & 0xFFFF;
-				vec3	   best_color = texelFetch (palette_colors, int (colors_offset)).rgb;
-				vec3	   second_best_color = best_color;
-				float	   best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
-				float	   second_best_dist_sq = 1e38f;
-				[[loop]] for (int i = 1; i < num_colors; ++i)
-				{
-					vec3  palette_color = texelFetch (palette_colors, int (colors_offset + i)).rgb;
-					float dist_sq = dot (color.rgb - palette_color, color.rgb - palette_color);
-					[[flatten]] if (dist_sq < best_dist_sq)
-					{
-						second_best_dist_sq = best_dist_sq;
-						second_best_color = best_color;
-						best_color = palette_color;
-						best_dist_sq = dist_sq;
-					}
-					else if (dist_sq < second_best_dist_sq)
-					{
-						second_best_color = palette_color;
-						second_best_dist_sq = dist_sq;
-					}
-				}
+// 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
+// 	{
+// 		uvec3 search_color = uvec3 (clamp(color.rgb, vec3(0), vec3(1)) * 255.0f);
+// 		uint  current_node_offset = 0;
+// 		uint  current_shift = 7;
+// 		uvec3 node_coords = uvec3 (0u);
+// 		[[loop]] while (true)
+// 		{
+// 			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
+// 			const uint	child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
+// 			const uint	offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
+// 			[[branch]] if ((offset & (1u << 31)) == 0)
+// 			{
+// 				node_coords = node_coords + (node_offsets << current_shift);
+// 				current_shift -= 1;
+// 				current_node_offset = offset;
+// 			}
+// 			else
+// 			{
+// 				const uint num_colors = offset & 0xF;
+// 				const uint colors_offset = (offset >> 4) & 0xFFFF;
+// 				vec3	   best_color = texelFetch (palette_colors, int (colors_offset)).rgb;
+// 				vec3	   second_best_color = best_color;
+// 				float	   best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
+// 				float	   second_best_dist_sq = 1e38f;
+// 				[[loop]] for (int i = 1; i < num_colors; ++i)
+// 				{
+// 					vec3  palette_color = texelFetch (palette_colors, int (colors_offset + i)).rgb;
+// 					float dist_sq = dot (color.rgb - palette_color, color.rgb - palette_color);
+// 					[[flatten]] if (dist_sq < best_dist_sq)
+// 					{
+// 						second_best_dist_sq = best_dist_sq;
+// 						second_best_color = best_color;
+// 						best_color = palette_color;
+// 						best_dist_sq = dist_sq;
+// 					}
+// 					else if (dist_sq < second_best_dist_sq)
+// 					{
+// 						second_best_color = palette_color;
+// 						second_best_dist_sq = dist_sq;
+// 					}
+// 				}
+// 
+// 				float luma[3][3];
+// 				[[unroll]] for (int y = -1; y <= 1; ++y)
+// 				{
+// 					[[unroll]] for (int x = -1; x <= 1; ++x)
+// 					{
+// 						ivec2 sample_pos = clamp (ivec2 (pos_x, pos_y) + ivec2 (x, y), ivec2 (0), ivec2 (push_constants.clamp_size));
+// 						vec3  rgb = texelFetch (input_tex, sample_pos, 0).rgb;
+// 						luma[x + 1][y + 1] = (rgb.r + rgb.g + rgb.b) / 3.0f;
+// 					}
+// 				}
+// 
+// 				// Run a sobel filter because we don't want to apply too much dithering to very smooth screen areas.
+// 				float s[2] = {1.0f, 2.0f};
+// 				vec2  sobel_xy = vec2 (
+// 					 (s[0] * luma[0][0]) - (s[0] * luma[2][0]) + (s[1] * luma[0][1]) - (s[1] * luma[2][1]) + (s[0] * luma[0][2]) - (s[0] * luma[2][2]),
+// 					 (s[0] * luma[0][0]) - (s[0] * luma[0][2]) + (s[1] * luma[1][0]) - (s[1] * luma[1][2]) + (s[0] * luma[2][0]) - (s[0] * luma[2][2]));
+// 				float sobel = dot (sobel_xy, sobel_xy);
+// 
+// 				float p = clamp ((5.0f - (sobel * 1e4f)), 1.0f, 5.0f);
+// 				float a = pow (best_dist_sq, p);
+// 				float b = pow (second_best_dist_sq, p);
+// 				float ratio = a / (a + b);
+// 
+// 				const float noise = blue_noise (ivec2 (pos_x, pos_y));
+// 				color.rgb = (ratio <= noise) ? best_color : second_best_color;
+// 				break;
+// 			}
+// 		}
+// 	}
 
-				float luma[3][3];
-				[[unroll]] for (int y = -1; y <= 1; ++y)
-				{
-					[[unroll]] for (int x = -1; x <= 1; ++x)
-					{
-						ivec2 sample_pos = clamp (ivec2 (pos_x, pos_y) + ivec2 (x, y), ivec2 (0), ivec2 (push_constants.clamp_size));
-						vec3  rgb = texelFetch (input_tex, sample_pos, 0).rgb;
-						luma[x + 1][y + 1] = (rgb.r + rgb.g + rgb.b) / 3.0f;
-					}
-				}
-
-				// Run a sobel filter because we don't want to apply too much dithering to very smooth screen areas.
-				float s[2] = {1.0f, 2.0f};
-				vec2  sobel_xy = vec2 (
-					 (s[0] * luma[0][0]) - (s[0] * luma[2][0]) + (s[1] * luma[0][1]) - (s[1] * luma[2][1]) + (s[0] * luma[0][2]) - (s[0] * luma[2][2]),
-					 (s[0] * luma[0][0]) - (s[0] * luma[0][2]) + (s[1] * luma[1][0]) - (s[1] * luma[1][2]) + (s[0] * luma[2][0]) - (s[0] * luma[2][2]));
-				float sobel = dot (sobel_xy, sobel_xy);
-
-				float p = clamp ((5.0f - (sobel * 1e4f)), 1.0f, 5.0f);
-				float a = pow (best_dist_sq, p);
-				float b = pow (second_best_dist_sq, p);
-				float ratio = a / (a + b);
-
-				const float noise = blue_noise (ivec2 (pos_x, pos_y));
-				color.rgb = (ratio <= noise) ? best_color : second_best_color;
-				break;
-			}
-		}
-	}
-
-	color.rgb = mix (color.rgb, vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
+	color.rgb = mix (color.rgb, BT709GammaToBT2020Gamma (vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b)), push_constants.poly_blend_a);
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)
 		color.rgb = mix (color.rgb, mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.6f, push_constants.menu_alpha);
 

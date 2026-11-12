@@ -22,9 +22,11 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 layout (location = 0) out vec4 out_frag_color;
 
+#include "color_convert.inc"
+
 void main ()
 {
-	vec4  color = in_color * texture (tex, in_texcoord.xy);
+	vec4  color = BT709GammaToBT2020Gamma (in_color) * BT709GammaToBT2020Gamma (texture (tex, in_texcoord.xy));
 	float fade = 1.0;
 	if (push_constants.inverse_fade_distance > 0.0)
 	{
@@ -56,9 +58,9 @@ void main ()
 	else if (blend_mode == 4)
 		color *= fog;
 	else if (blend_mode == 7)
-		color.rgb = mix (push_constants.fog_color * color.a, color.rgb, fog);
+		color.rgb = mix (BT709GammaToBT2020Gamma (push_constants.fog_color) * color.a, color.rgb, fog);
 	else
-		color.rgb = mix (push_constants.fog_color, color.rgb, fog);
+		color.rgb = mix (BT709GammaToBT2020Gamma (push_constants.fog_color), color.rgb, fog);
 
 	out_frag_color = color;
 

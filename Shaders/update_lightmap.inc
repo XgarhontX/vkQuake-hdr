@@ -3,6 +3,7 @@
 #define MAXLIGHTMAPS	4
 
 #include "globals.inc"
+#include "color_convert.inc"
 
 layout (push_constant) uniform PushConsts
 {
@@ -355,7 +356,7 @@ void main ()
 							occlusion -= 1.0f / float (push_constants.shadow_samples);
 					}
 #endif
-					light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
+					light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * /* BT709GammaToBT2020Gamma */(light.color);
 				}
 			}
 	}
